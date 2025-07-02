@@ -17,6 +17,7 @@ from clustering_samples import CLUSTERING_CATEGORIES
 
 logger = build_logger("model_logger", "model_logger.log")
 
+# If 8 GPUs
 MODEL_TO_CUDA_DEVICE = {
     "sentence-transformers/all-MiniLM-L6-v2": "0",
     "nomic-ai/nomic-embed-text-v1.5": "0",
@@ -30,9 +31,22 @@ MODEL_TO_CUDA_DEVICE = {
     "mixedbread-ai/mxbai-embed-large-v1": "7",
 }
 
+# If 2 H100 GPUs
+MODEL_TO_CUDA_DEVICE = {
+    "sentence-transformers/all-MiniLM-L6-v2": "0",
+    "nomic-ai/nomic-embed-text-v1.5": "0",
+    "intfloat/multilingual-e5-large-instruct": "0",
+    "intfloat/e5-mistral-7b-instruct": "1",
+    "GritLM/GritLM-7B": "0",
+    "BAAI/bge-large-en-v1.5": "0",
+    "Alibaba-NLP/gte-Qwen2-7B-instruct": "1",
+    "Salesforce/SFR-Embedding-2_R": "0",
+    "jinaai/jina-embeddings-v2-base-en": "1",
+    "mixedbread-ai/mxbai-embed-large-v1": "0",
+}
+
 CORPUS_TO_FORMAT = {
     "arxiv": "Title: {title}\n\nAbstract: {text}",
-#    "wikipedia": "Title: {title}\n\nPassage: {text}",
     "wikipedia": "{title}\n\n{text}",
     "stackexchange": "{text}",
 }

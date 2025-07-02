@@ -13,3 +13,7 @@ plotly
 PyStemmer
 spaces
 umap-learn
+# VoyageAI API
+voyageai
+# Cohere API
+cohere

@@ -14,9 +14,12 @@ GCP_INDEX = True
 
 acknowledgment_md = """
 ### Acknowledgment
-We thank [Contextual AI](https://contextual.ai/), [ServiceNow](https://www.servicenow.com/), [Ai2](https://allenai.org/), [Hugging Face](https://huggingface.co/) for their generous sponsorship. If you'd like to sponsor us, please get in [touch](mailto:n.muennighoff@gmail.com).
+We thank [Google](https://cloud.google.com/), [Contextual AI](https://contextual.ai/), [ServiceNow](https://www.servicenow.com/), [Ai2](https://allenai.org/), [Hugging Face](https://huggingface.co/) for their generous sponsorship. If you'd like to sponsor us, please get in [touch](mailto:n.muennighoff@gmail.com).
 
 <div class="sponsor-image-about" style="display: flex; align-items: center; gap: 10px;">
+    <a href="https://cloud.google.com/">
+        <img src="https://img.icons8.com/?size=512&id=17949&format=png" width="60" height="55" style="padding: 10px;">
+    </a>
     <a href="https://contextual.ai/">
         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQd4EDMoZLFRrIjVBrSXOQYGcmvUJ3kL4U2usvjuKPla-LoRTZtLzFnb_Cu5tXzRI7DNBo&usqp=CAU" width="60" height="55" style="padding: 10px;">
     </a>
