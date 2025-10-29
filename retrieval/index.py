@@ -3,7 +3,7 @@ import json
 import math
 import os
 import pickle
-from typing import Optional, Set, Tuple, Union, Any
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -11,10 +11,11 @@ import torch
 from retrieval import dist_utils
 
 DTYPE_TO_TORCH_DTYPE = {
-    'bfloat16': torch.bfloat16,
-    'float32': torch.float32,
-    'float16': torch.float16,
+    "bfloat16": torch.bfloat16,
+    "float32": torch.float32,
+    "float16": torch.float16,
 }
+
 
 class DistributedIndex(object):
     def __init__(self, dtype=torch.float32):
@@ -35,7 +36,12 @@ class DistributedIndex(object):
     def _get_saved_passages_path(self, save_dir: str, shard: int) -> str:
         return os.path.join(save_dir, f"passages.{shard}.pt")
 
-    def save_index(self, path: str, total_saved_shards: int = 1, overwrite_saved_passages: bool = False) -> None:
+    def save_index(
+        self,
+        path: str,
+        total_saved_shards: int = 1,
+        overwrite_saved_passages: bool = False,
+    ) -> None:
         """
         Saves index state to disk, which can later be loaded by the load_index method.
         Specifically, it saves the embeddings and passages into total_saved_shards separate file shards.
@@ -46,12 +52,16 @@ class DistributedIndex(object):
         assert self.embeddings is not None
         rank = dist_utils.get_rank()
         ws = dist_utils.get_world_size()
-        assert total_saved_shards % ws == 0, f"N workers must be a multiple of shards to save"
+        assert total_saved_shards % ws == 0, (
+            "N workers must be a multiple of shards to save"
+        )
         shards_per_worker = total_saved_shards // ws
         n_embeddings = self.embeddings.shape[1]
         embeddings_per_shard = math.ceil(n_embeddings / shards_per_worker)
         assert n_embeddings == len(self.doc_map), len(self.doc_map)
-        for shard_ind, (shard_start) in enumerate(range(0, n_embeddings, embeddings_per_shard)):
+        for shard_ind, (shard_start) in enumerate(
+            range(0, n_embeddings, embeddings_per_shard)
+        ):
             shard_end = min(shard_start + embeddings_per_shard, n_embeddings)
             shard_id = shard_ind + rank * shards_per_worker  # get global shard number
             passage_shard_path = self._get_saved_passages_path(path, shard_id)
@@ -59,7 +69,7 @@ class DistributedIndex(object):
                 passage_shard = [self.doc_map[i] for i in range(shard_start, shard_end)]
                 with open(passage_shard_path, "wb") as fobj:
                     pickle.dump(passage_shard, fobj, protocol=pickle.HIGHEST_PROTOCOL)
-            embeddings_shard = self.embeddings[:, shard_start:shard_end]#.clone()
+            embeddings_shard = self.embeddings[:, shard_start:shard_end]  # .clone()
             embedding_shard_path = self._get_saved_embedding_path(path, shard_id)
             torch.save(embeddings_shard, embedding_shard_path)
 
@@ -69,7 +79,9 @@ class DistributedIndex(object):
         """
         rank = dist_utils.get_rank()
         ws = dist_utils.get_world_size()
-        assert total_saved_shards % ws == 0, f"N workers must be a multiple of shards to save"
+        assert total_saved_shards % ws == 0, (
+            "N workers must be a multiple of shards to save"
+        )
         shards_per_worker = total_saved_shards // ws
         passages = []
         embeddings = []
@@ -79,7 +91,9 @@ class DistributedIndex(object):
                 passages.append(pickle.load(fobj))
             embeddings_shard_path = self._get_saved_embedding_path(path, shard_id)
             if self.is_in_gpu:
-                embeddings.append(torch.load(embeddings_shard_path, map_location="cpu").cuda())
+                embeddings.append(
+                    torch.load(embeddings_shard_path, map_location="cpu").cuda()
+                )
             else:
                 embeddings.append(torch.load(embeddings_shard_path, map_location="cpu"))
         self.doc_map = {}
@@ -93,7 +107,9 @@ class DistributedIndex(object):
         else:
             self.embeddings = embeddings[0]
 
-    def _compute_scores_and_indices(self, allqueries: torch.tensor, topk: int) -> Tuple[torch.tensor, torch.tensor]:
+    def _compute_scores_and_indices(
+        self, allqueries: torch.tensor, topk: int
+    ) -> Tuple[torch.tensor, torch.tensor]:
         """
         Computes the distance matrix for the query embeddings and embeddings chunk and returns the k-nearest neighbours and corresponding scores.
         """
@@ -116,12 +132,20 @@ class DistributedIndex(object):
         indices = indices.tolist()
         docs = [[self.doc_map[x] for x in sample_indices] for sample_indices in indices]
         if torch.distributed.is_initialized():
-            docs = [docs[allsizes[k] : allsizes[k + 1]] for k in range(len(allsizes) - 1)]
+            docs = [
+                docs[allsizes[k] : allsizes[k + 1]] for k in range(len(allsizes) - 1)
+            ]
             docs = [serialize_listdocs(x) for x in docs]
-            scores = [scores[allsizes[k] : allsizes[k + 1]] for k in range(len(allsizes) - 1)]
-            gather_docs = [dist_utils.varsize_gather(docs[k], dst=k, dim=0) for k in range(dist_utils.get_world_size())]
+            scores = [
+                scores[allsizes[k] : allsizes[k + 1]] for k in range(len(allsizes) - 1)
+            ]
+            gather_docs = [
+                dist_utils.varsize_gather(docs[k], dst=k, dim=0)
+                for k in range(dist_utils.get_world_size())
+            ]
             gather_scores = [
-                dist_utils.varsize_gather(scores[k], dst=k, dim=1) for k in range(dist_utils.get_world_size())
+                dist_utils.varsize_gather(scores[k], dst=k, dim=1)
+                for k in range(dist_utils.get_world_size())
             ]
             rank_scores = gather_scores[dist_utils.get_rank()]
             rank_docs = gather_docs[dist_utils.get_rank()]
@@ -142,9 +166,10 @@ class DistributedIndex(object):
 
     def is_index_trained(self) -> bool:
         return True
-    
+
+
 def load_passages(filenames, maxload=-1):
-    """ 
+    """
     Returns a list of passages. Each passage is a dict with the following keys:
     {
         "_id:" doc0,
@@ -152,6 +177,7 @@ def load_passages(filenames, maxload=-1):
         "text": "Body text 1",
     }
     """
+
     def process_jsonl(
         fname,
         counter,
@@ -185,7 +211,6 @@ def load_passages(filenames, maxload=-1):
     global_rank = dist_utils.get_rank()
     world_size = dist_utils.get_world_size()
     for filename in filenames:
-
         passages, counter = process_jsonl(
             filename,
             counter,
@@ -197,7 +222,16 @@ def load_passages(filenames, maxload=-1):
 
     return passages
 
-def load_or_initialize_index(load_index_path=None, dim=None, index_dtype='bfloat16', save_index_n_shards=1, passages=None, limit=None, customd=None):
+
+def load_or_initialize_index(
+    load_index_path=None,
+    dim=None,
+    index_dtype="bfloat16",
+    save_index_n_shards=1,
+    passages=None,
+    limit=None,
+    customd=None,
+):
     """
     load_index_path:
         path for loading the index, passage embeddings and passages
@@ -216,32 +250,41 @@ def load_or_initialize_index(load_index_path=None, dim=None, index_dtype='bfloat
         print(f"Loading passages from: {passages}")
         passages = load_passages(passages)
         print(f"Loaded {len(passages)} passages")
-        if limit is not None:            
+        if limit is not None:
             passages = passages[:limit]
             print(f"Limiting to {len(passages)} passages")
         if customd:
             if os.path.exists(customd):
                 with open(customd, "r") as f:
                     passages = [{"text": f.read(), "title": ""}]
-            else: # Is number
+            else:  # Is number
                 passages = [{"text": "<s>" * int(customd), "title": ""}]
         print(f"Example passage: {passages[0]}")
         index.init_embeddings(passages, dim)
 
     return index, passages
 
+
 @torch.no_grad()
 def build_index(model, index, passages, gpu_embedder_batch_size=512):
     n_batch = math.ceil(len(passages) / gpu_embedder_batch_size)
     total = 0
     for i in range(n_batch):
-        batch = passages[i * gpu_embedder_batch_size : (i + 1) * gpu_embedder_batch_size]
-        #, instruction=gritlm_instruction_format())
+        batch = passages[
+            i * gpu_embedder_batch_size : (i + 1) * gpu_embedder_batch_size
+        ]
+        # , instruction=gritlm_instruction_format())
         if hasattr(model, "encode_corpus"):
-            embeddings = model.encode_corpus(batch, batch_size=gpu_embedder_batch_size, convert_to_tensor=True)
+            embeddings = model.encode_corpus(
+                batch, batch_size=gpu_embedder_batch_size, convert_to_tensor=True
+            )
         else:
-            embeddings = model.encode(batch, batch_size=gpu_embedder_batch_size, convert_to_tensor=True)
-        index.embeddings[:, total : total + len(embeddings)] = embeddings.T.to(index.dtype)
+            embeddings = model.encode(
+                batch, batch_size=gpu_embedder_batch_size, convert_to_tensor=True
+            )
+        index.embeddings[:, total : total + len(embeddings)] = embeddings.T.to(
+            index.dtype
+        )
         total += len(embeddings)
         if i % 500 == 0 and i > 0:
             print(f"Number of passages encoded: {total}")

@@ -3,33 +3,33 @@ import re
 
 # we don't want to include these sections in the final text
 ENDING_PHRASES = [
-  "Reference",
-  "References",
-  "Notes",
-  "Bibliography",
-  "Reflist", 
-  "Reference list",
-  "Footnote",
-  "Footnotes",
-  "See also",
-  "See Also",
-  "Gallery",
-  "External links",
-  "External Links",
-  "Links",
-  "Further reading",
-  "Further Reading",
-  "Sources",
-  "Notes",
-  "Bibliography",
-  "Selected bibliography",
-  "References and notes",
-  "References:",
-  "References and external links",
-  "ReferencesSources",
-  "References Sources",
-  "== References ==",
-  # Can't do `Works`, it destroys some of the Wikipedia formatting and also applies to artists
+    "Reference",
+    "References",
+    "Notes",
+    "Bibliography",
+    "Reflist",
+    "Reference list",
+    "Footnote",
+    "Footnotes",
+    "See also",
+    "See Also",
+    "Gallery",
+    "External links",
+    "External Links",
+    "Links",
+    "Further reading",
+    "Further Reading",
+    "Sources",
+    "Notes",
+    "Bibliography",
+    "Selected bibliography",
+    "References and notes",
+    "References:",
+    "References and external links",
+    "ReferencesSources",
+    "References Sources",
+    "== References ==",
+    # Can't do `Works`, it destroys some of the Wikipedia formatting and also applies to artists
 ]
 
 
@@ -46,12 +46,32 @@ def _parse_and_clean_wikicode(raw_content):
         return str(obj.title).lower().startswith(("file:", "image:", "media:"))
 
     def rm_tag(obj):
-        return str(obj.tag).lower() in {"ref", "table", "tbody", "tr", "td", "th", "li", "ul", "infobox"}
+        return str(obj.tag).lower() in {
+            "ref",
+            "table",
+            "tbody",
+            "tr",
+            "td",
+            "th",
+            "li",
+            "ul",
+            "infobox",
+        }
 
     def rm_template(obj):
         return obj.name.lower() in {
-            "reflist", "notelist", "notelist-ua", "notelist-lr", "notelist-ur", "notelist-lg",
-            "cite", "cite web", "cite news", "cite book", "cite journal", "infobox"
+            "reflist",
+            "notelist",
+            "notelist-ua",
+            "notelist-lr",
+            "notelist-ur",
+            "notelist-lg",
+            "cite",
+            "cite web",
+            "cite news",
+            "cite book",
+            "cite journal",
+            "infobox",
         }
 
     def try_remove_obj(obj, section):
@@ -61,7 +81,9 @@ def _parse_and_clean_wikicode(raw_content):
             pass
 
     section_text = []
-    for section in wikicode.get_sections(flat=True, include_lead=True, include_headings=True):
+    for section in wikicode.get_sections(
+        flat=True, include_lead=True, include_headings=True
+    ):
         if section.filter_headings():
             heading = str(section.filter_headings()[0].title).strip()
             if reverse_in(heading, ENDING_PHRASES):
@@ -76,11 +98,13 @@ def _parse_and_clean_wikicode(raw_content):
             try_remove_obj(obj, section)
 
         # Remove all references, including <ref> tags
-        for ref in section.filter_tags(matches=lambda tag: tag.tag.lower() == 'ref'):
+        for ref in section.filter_tags(matches=lambda tag: tag.tag.lower() == "ref"):
             try_remove_obj(ref, section)
 
         # Remove Wikipedia-style tables
-        for table in section.filter_templates(matches=lambda t: t.name.strip().lower() == 's-start'):
+        for table in section.filter_templates(
+            matches=lambda t: t.name.strip().lower() == "s-start"
+        ):
             try_remove_obj(table, section)
 
         # Clean remaining text
@@ -89,32 +113,40 @@ def _parse_and_clean_wikicode(raw_content):
         # Remove remaining table-like structures
         clean_lines = []
         in_table = False
-        for line in clean_text.split('\n'):
-            if line.strip().startswith('{|') or line.strip().startswith('|-'):
+        for line in clean_text.split("\n"):
+            if line.strip().startswith("{|") or line.strip().startswith("|-"):
                 in_table = True
-            elif line.strip().startswith('|}'):
+            elif line.strip().startswith("|}"):
                 in_table = False
-            elif not in_table and not line.strip().startswith('|'):
+            elif not in_table and not line.strip().startswith("|"):
                 clean_lines.append(line)
 
-        clean_text = '\n'.join(clean_lines)
+        clean_text = "\n".join(clean_lines)
 
         # if the above parsing missed any, just remove them
-        clean_text = re.sub(r'<[^>]+>', '', clean_text)
+        clean_text = re.sub(r"<[^>]+>", "", clean_text)
         # get cite and infobox templates
-        clean_text = re.sub(r'{{cite.*?}}', '', clean_text, flags=re.DOTALL | re.IGNORECASE)
-        clean_text = re.sub(r'{{infobox.*?}}', '', clean_text, flags=re.DOTALL | re.IGNORECASE)
+        clean_text = re.sub(
+            r"{{cite.*?}}", "", clean_text, flags=re.DOTALL | re.IGNORECASE
+        )
+        clean_text = re.sub(
+            r"{{infobox.*?}}", "", clean_text, flags=re.DOTALL | re.IGNORECASE
+        )
 
         # Remove empty lines and excessive whitespace
-        clean_lines = [line.strip() for line in clean_text.split('\n') if line.strip()]
-        clean_text = '\n'.join(clean_lines)
+        clean_lines = [line.strip() for line in clean_text.split("\n") if line.strip()]
+        clean_text = "\n".join(clean_lines)
 
         # remove any {{.*}} if they close
-        clean_text = re.sub(r'{{.*}}', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r"{{.*}}", "", clean_text, flags=re.DOTALL)
         # if the strings "{{" is in there with no "}}" then remove {{ and the word attached to it
         if "{{" in clean_text or "}}" in clean_text:
             clean_text_words = clean_text.split()
-            index_of_open = [idx for idx, word in enumerate(clean_text_words) if ("{{" in word or "}}" in word)]
+            index_of_open = [
+                idx
+                for idx, word in enumerate(clean_text_words)
+                if ("{{" in word or "}}" in word)
+            ]
             # delete the word that has the {{
             for i in reversed(index_of_open):
                 clean_text_words.pop(i)

@@ -3,11 +3,11 @@ import tqdm
 import json
 import glob
 import argparse
-from datasets import load_dataset
 import gzip
 
 from extractor import _parse_and_clean_wikicode, ENDING_PHRASES
 from newest_arxiv import create_newest_arxiv
+
 
 def read_in_cirrus(args):
     """
@@ -24,7 +24,6 @@ def read_in_cirrus(args):
         # they come in twos
         prev_doc_type = None
         for idx, line in tqdm.tqdm(enumerate(f)):
-
             if args.debug and idx >= 5000:
                 break
 
@@ -32,23 +31,30 @@ def read_in_cirrus(args):
                 if prev_doc_type != "_doc":
                     print(f"Skipping non-doc type {prev_doc_type}")
                     continue
-                
+
                 inst = json.loads(line)
                 text = _parse_and_clean_wikicode(inst["source_text"])
-
 
                 final_paragraphs = []
                 cur_words = 0
                 cur_str = ""
                 # greedily bring them together from a backwards approach, so that heading fit with their paragraphs
                 for paragraph in reversed(text.split("\n")):
-                    if paragraph.strip() in [""] + ENDING_PHRASES or paragraph.startswith("Category:"):
+                    if paragraph.strip() in [
+                        ""
+                    ] + ENDING_PHRASES or paragraph.startswith("Category:"):
                         continue
 
                     words = paragraph.split()
                     # if it's a title, we want to try and include it
-                    is_short_and_barely_over = (cur_words + len(words) > args.word_limit) and len(words) < 5 and (cur_words < args.word_limit + 10)
-                    if (cur_words + len(words) > args.word_limit) and not is_short_and_barely_over:
+                    is_short_and_barely_over = (
+                        (cur_words + len(words) > args.word_limit)
+                        and len(words) < 5
+                        and (cur_words < args.word_limit + 10)
+                    )
+                    if (
+                        cur_words + len(words) > args.word_limit
+                    ) and not is_short_and_barely_over:
                         final_paragraphs.insert(0, cur_str.strip())
                         cur_str = ""
                         cur_words = 0
@@ -58,7 +64,6 @@ def read_in_cirrus(args):
 
                 if cur_str.strip() != "":
                     final_paragraphs.insert(0, cur_str.strip())
-
 
                 for idx, paragraph in enumerate(final_paragraphs):
                     processed_data = {
@@ -80,7 +85,7 @@ def prep_stackexchange(args):
 
     NOTE: this corpus is large and we only filter about 700k out of ~22 million with a word limit of 500
     """
-    print(f"Loading stackexchange dataset")
+    print("Loading stackexchange dataset")
     if not os.path.isdir(args.output_dir):
         os.makedirs(args.output_dir)
     output_f = open(os.path.join(args.output_dir, "train.jsonl"), "w")
@@ -95,10 +100,15 @@ def prep_stackexchange(args):
                 if len(inst["text"].split(" ")) > args.word_limit:
                     skipped += 1
                     continue
-                output_f.write(json.dumps({
-                    "text": inst["text"],
-                    "id": inst["id"],
-                }) + "\n")
+                output_f.write(
+                    json.dumps(
+                        {
+                            "text": inst["text"],
+                            "id": inst["id"],
+                        }
+                    )
+                    + "\n"
+                )
                 written_out += 1
 
     print(f"Skipped {skipped} and wrote out {written_out}")
@@ -126,7 +136,6 @@ def create_chunks(args):
         prep_stackexchange(args)
     else:
         raise NotImplementedError(f"Corpus type {args.corpus_type} not implemented")
-
 
 
 if __name__ == "__main__":

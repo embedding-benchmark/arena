@@ -13,6 +13,7 @@ TASK_TYPE_TO_EMOJI = {
     "STS": "☘️",
 }
 
+
 def make_arena_leaderboard_md(elo_results):
     arena_df = elo_results["leaderboard_table_df"]
     last_updated = elo_results["last_updated_datetime"]
@@ -26,19 +27,29 @@ Contribute your votes 🗳️ at [MTEB Arena](https://huggingface.co/spaces/mteb
 """
     return leaderboard_md
 
+
 def model_hyperlink(model_name, link):
     return f'<a target="_blank" href="{link}" style="color: var(--link-text-color); text-decoration: underline;text-decoration-style: dotted;">{model_name}</a>'
+
 
 def load_leaderboard_table_csv(filename, add_hyperlink=True):
     df = pd.read_csv(filename)
     for col in df.columns:
         if "Arena Elo rating" in col:
             df[col] = df[col].apply(lambda x: int(x) if x != "-" else np.nan)
-        elif col in ("MTEB Overall Avg", "MTEB Retrieval Avg", "MTEB Clustering Avg", "MTEB STS Avg"):
+        elif col in (
+            "MTEB Overall Avg",
+            "MTEB Retrieval Avg",
+            "MTEB Clustering Avg",
+            "MTEB STS Avg",
+        ):
             df[col] = df[col].apply(lambda x: x if x != "-" else np.nan)
         if add_hyperlink and col == "Model":
-            df[col] = df.apply(lambda row: model_hyperlink(row[col], row["Link"]), axis=1)
+            df[col] = df.apply(
+                lambda row: model_hyperlink(row[col], row["Link"]), axis=1
+            )
     return df
+
 
 def get_arena_table(arena_df, model_table_df, task_type="Retrieval"):
     # sort by rating
@@ -47,7 +58,9 @@ def get_arena_table(arena_df, model_table_df, task_type="Retrieval"):
     for i in range(len(arena_df)):
         row = []
         model_key = arena_df.index[i]
-        model_name = model_table_df[model_table_df["key"] == model_key]["Model"].values[0]
+        model_name = model_table_df[model_table_df["key"] == model_key]["Model"].values[
+            0
+        ]
         # rank
         row.append(i + 1)
         # model display name
@@ -72,7 +85,10 @@ def get_arena_table(arena_df, model_table_df, task_type="Retrieval"):
         values.append(row)
     return values
 
-def build_leaderboard_tab(elo_results_file, leaderboard_table_file, show_plot=False, task_type="Retrieval"):
+
+def build_leaderboard_tab(
+    elo_results_file, leaderboard_table_file, show_plot=False, task_type="Retrieval"
+):
     if elo_results_file is None:  # Do live update
         md = "Loading ..."
         p1 = p2 = p3 = p4 = None
@@ -95,7 +111,9 @@ def build_leaderboard_tab(elo_results_file, leaderboard_table_file, show_plot=Fa
 
     if leaderboard_table_file:
         model_table_df = load_leaderboard_table_csv(leaderboard_table_file)
-        arena_table_vals = get_arena_table(anony_arena_df, model_table_df, task_type=task_type)
+        arena_table_vals = get_arena_table(
+            anony_arena_df, model_table_df, task_type=task_type
+        )
         md = make_arena_leaderboard_md(anony_elo_results)
         gr.Markdown(md, elem_id="leaderboard_markdown")
         gr.Dataframe(
@@ -106,7 +124,7 @@ def build_leaderboard_tab(elo_results_file, leaderboard_table_file, show_plot=Fa
                 "📊 95% CI",
                 "🗳️ Votes",
                 "🥇 MTEB Overall Avg",
-                f"🥇 MTEB {task_type} Avg",                        
+                f"🥇 MTEB {task_type} Avg",
                 "Organization",
                 "License",
             ],
@@ -116,14 +134,14 @@ def build_leaderboard_tab(elo_results_file, leaderboard_table_file, show_plot=Fa
                 "number",
                 "str",
                 "number",
-                "number", 
+                "number",
                 "number",
                 "str",
                 "str",
             ],
             value=arena_table_vals,
             elem_id="arena_leaderboard_dataframe",
-            #height=700,
+            # height=700,
             column_widths=[50, 150, 100, 100, 100, 100, 100, 150, 150],
             wrap=True,
         )

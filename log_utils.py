@@ -1,4 +1,5 @@
 """Common utilities."""
+
 import logging
 import logging.handlers
 import os
@@ -29,7 +30,7 @@ if os.getenv("HF_TOKEN"):
         folder_path=JSON_DATASET_DIR,
         path_in_repo="data",
         every=5,
-        token=os.environ["HF_TOKEN"]
+        token=os.environ["HF_TOKEN"],
     )
 else:
     scheduler = None
@@ -41,6 +42,7 @@ handler = None
 visited_loggers = set()
 
 LOGDIR = os.getenv("LOGDIR", "./MTEB-Arena-logs/vote_log")
+
 
 class APIHandler(logging.Handler):
     """Custom logging handler that sends logs to an API."""
@@ -56,6 +58,7 @@ class APIHandler(logging.Handler):
             save_log_str_on_log_server(log_entry, self.log_path)
         except requests.RequestException as e:
             print(f"Error sending log to API: {e}", file=sys.stderr)
+
 
 def build_logger(logger_name, logger_filename, add_remote_handler=False):
     global handler
@@ -93,16 +96,18 @@ def build_logger(logger_name, logger_filename, add_remote_handler=False):
     # Get logger
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
-    
+
     if add_remote_handler:
         # Add APIHandler to send logs to your API
         api_url = f"{LOG_SERVER_ADDR}/{SAVE_LOG}"
-        
+
         remote_logger_filename = str(Path(logger_filename).stem + "_remote.log")
-        api_handler = APIHandler(apiUrl=api_url, log_path=f"{LOGDIR}/{remote_logger_filename}")
+        api_handler = APIHandler(
+            apiUrl=api_url, log_path=f"{LOGDIR}/{remote_logger_filename}"
+        )
         api_handler.setFormatter(formatter)
         logger.addHandler(api_handler)
-        
+
         stdout_logger.addHandler(api_handler)
         stderr_logger.addHandler(api_handler)
 
@@ -163,7 +168,9 @@ class StreamToLogger(object):
 def store_data_in_hub(message: str, message_type: str):
     if scheduler:
         with scheduler.lock:
-            file_to_upload = Path(str(JSON_DATASET_PATH).replace("NAME_TO_REPLACE", message_type))
+            file_to_upload = Path(
+                str(JSON_DATASET_PATH).replace("NAME_TO_REPLACE", message_type)
+            )
             with file_to_upload.open("a", encoding="utf-8") as f:
                 json.dump(message, f, ensure_ascii=False)
                 f.write("\n")

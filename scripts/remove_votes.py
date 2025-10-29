@@ -35,7 +35,9 @@ for file in os.listdir("results_dataset_to_upload"):
                             remove = True
                             break
                     elif "0_model_name" in line:
-                        if (model in line["0_model_name"]) or (model in line["1_model_name"]):
+                        if (model in line["0_model_name"]) or (
+                            model in line["1_model_name"]
+                        ):
                             remove = True
                             break
                     else:
@@ -46,4 +48,3 @@ for file in os.listdir("results_dataset_to_upload"):
             with open(f"results_dataset_to_upload/{file}", "w") as f:
                 for line in new_lines:
                     f.write(json.dumps(line) + "\n")
-

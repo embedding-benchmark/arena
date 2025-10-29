@@ -1,17 +1,17 @@
 from yaml import safe_load
 import random
-import json
 import yaml
 from models import ModelManager
 
 random.seed(42)
 
 MODEL_META_PATH = "model_meta_debug.yml"
-with open(MODEL_META_PATH, 'r', encoding='utf-8') as f:
+with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
     model_meta = safe_load(f)
 
 ## Get a small query set
 from datasets import load_dataset
+
 all_queries = load_dataset("mteb/nq", "queries")["queries"]["text"]
 queries = random.choices(all_queries, k=10)
 
@@ -27,11 +27,7 @@ for use_gcp in [False, True]:
         if results.get(q):
             results[q].update({index: docs[0][1]})
             continue
-        results.update({
-            q: {index: docs[0][1]}
-        })
+        results.update({q: {index: docs[0][1]}})
 
 with open("compare_results.yaml", "w") as f:
     yaml.safe_dump(results, f, allow_unicode=True)
-
-   

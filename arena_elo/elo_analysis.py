@@ -12,16 +12,16 @@ import plotly.express as px
 from tqdm import tqdm
 from datasets import load_dataset
 
-from .basic_stats import get_log_files
 from .clean_battle_data import clean_battle_data
-        
+
 pd.options.display.float_format = "{:.2f}".format
 
 MODEL_META_PATH = "model_meta.yml"
 # Debugging
 # MODEL_META_PATH = "model_meta_debug.yml"
-with open(MODEL_META_PATH, 'r', encoding='utf-8') as f:
+with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
     model_meta = safe_load(f)
+
 
 def compute_elo(battles, K=4, SCALE=400, BASE=10, INIT_RATING=1000):
     rating = defaultdict(lambda: INIT_RATING)
@@ -254,7 +254,9 @@ def visualize_bootstrap_elo_rating(df, df_final, limit_show_number):
     return fig
 
 
-def report_elo_analysis_results(battles_json, rating_system="bt", num_bootstrap=100, anony_only=True):
+def report_elo_analysis_results(
+    battles_json, rating_system="bt", num_bootstrap=100, anony_only=True
+):
     battles = pd.DataFrame(battles_json)
     battles = battles.sort_values(ascending=True, by=["tstamp"])
     # Only use anonymous votes
@@ -290,16 +292,16 @@ def report_elo_analysis_results(battles_json, rating_system="bt", num_bootstrap=
             "variance": bootstrap_df.var(),
             "rating_q975": bootstrap_df.quantile(0.975),
             "rating_q025": bootstrap_df.quantile(0.025),
-            "num_battles": battles["model_a"].value_counts() + battles["model_b"].value_counts(),
+            "num_battles": battles["model_a"].value_counts()
+            + battles["model_b"].value_counts(),
             # Turn NaN into zero
-            #"num_battles": (battles["model_a"].value_counts() + battles["model_b"].value_counts()).fillna(0),
+            # "num_battles": (battles["model_a"].value_counts() + battles["model_b"].value_counts()).fillna(0),
             # Concat all models first & then count values
-            #"num_battles": pd.concat([battles["model_a"], battles["model_b"]]).value_counts(),
+            # "num_battles": pd.concat([battles["model_a"], battles["model_b"]]).value_counts(),
         }
     )
     # required for leaderboard, catch it here
     assert not leaderboard_table_df["num_battles"].isna().any(), leaderboard_table_df
-
 
     # Plots
     leaderboard_table = visualize_leaderboard_table(elo_rating_final)
@@ -337,7 +339,7 @@ def pretty_print_elo_rating(rating):
     model_order = list(rating.keys())
     model_order.sort(key=lambda k: -rating[k])
     for i, model in enumerate(model_order):
-        print(f"{i+1:2d}, {model:25s}, {rating[model]:.0f}")
+        print(f"{i + 1:2d}, {model:25s}, {rating[model]:.0f}")
 
 
 if __name__ == "__main__":
@@ -362,12 +364,17 @@ if __name__ == "__main__":
         battles = clean_battle_data(data)
 
     anony_results = report_elo_analysis_results(
-        battles, rating_system=args.rating_system, num_bootstrap=args.num_bootstrap, anony_only=True
+        battles,
+        rating_system=args.rating_system,
+        num_bootstrap=args.num_bootstrap,
+        anony_only=True,
     )
     full_results = report_elo_analysis_results(
-        battles, rating_system=args.rating_system, num_bootstrap=args.num_bootstrap, anony_only=False
+        battles,
+        rating_system=args.rating_system,
+        num_bootstrap=args.num_bootstrap,
+        anony_only=False,
     )
-    
 
     print("# Online Elo")
     pretty_print_elo_rating(anony_results["elo_rating_online"])
@@ -380,7 +387,6 @@ if __name__ == "__main__":
     cutoff_date = datetime.datetime.fromtimestamp(
         last_updated_tstamp, tz=timezone("US/Pacific")
     ).strftime("%Y%m%d")
-
 
     results = {
         "anony": anony_results,

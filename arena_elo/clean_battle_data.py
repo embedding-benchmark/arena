@@ -4,20 +4,19 @@ Clean chatbot arena battle log.
 Usage:
 python3 clean_battle_data.py --mode conv_release
 """
+
 import argparse
 import datetime
 import json
-import os
-import sys
 from pytz import timezone
 import time
 
 from tqdm import tqdm
 
-from .basic_stats import get_log_files, NUM_SERVERS, LOG_ROOT_DIR
 from datasets import load_dataset
 
 VOTES = ["tievote", "leftvote", "rightvote", "bothbad_vote"]
+
 
 def remove_html(raw):
     if raw.startswith("<h3>"):
@@ -73,6 +72,7 @@ def read_file(filename):
             exit(0)
     return data
 
+
 def read_file_parallel(log_files, num_threads=16):
     data_all = []
     from multiprocessing import Pool
@@ -83,17 +83,21 @@ def read_file_parallel(log_files, num_threads=16):
             data_all.extend(ret)
     return data_all
 
-def clean_battle_data(
-    data, exclude_model_names, ban_ip_list=None, sanitize_ip=False, task_name="retrieval"
-):
 
+def clean_battle_data(
+    data,
+    exclude_model_names,
+    ban_ip_list=None,
+    sanitize_ip=False,
+    task_name="retrieval",
+):
     convert_type = {
         "leftvote": "model_a",
         "rightvote": "model_b",
         "tievote": "tie",
         "bothbadvote": "tie (bothbad)",
     }
-    
+
     all_models = set()
     all_ips = dict()
     ct_anony = 0
@@ -102,9 +106,10 @@ def clean_battle_data(
     ct_banned = 0
     battles = []
     for row in tqdm(data, desc="Cleaning"):
-
-        if row["task_type"].lower() != task_name.lower(): continue
-        if row["type"] == "share": continue
+        if row["task_type"].lower() != task_name.lower():
+            continue
+        if row["type"] == "share":
+            continue
 
         ## Don't think we need this anymore, but leaving commented just in case
         # if row["models"][0] in ["", None] or row["models"][1] in ["", None]:
@@ -114,10 +119,7 @@ def clean_battle_data(
         # Resolve model names
         models_public = [remove_html(row["models"][0]), remove_html(row["models"][1])]
         if row["0_model_name"].strip() != "":
-            models_hidden = [
-                row["0_model_name"],
-                row["1_model_name"]
-            ]
+            models_hidden = [row["0_model_name"], row["1_model_name"]]
         else:
             models_hidden = models_public
 
@@ -146,21 +148,22 @@ def clean_battle_data(
         #     ct_invalid += 1
         #     continue
         # lang_code = detect_language(state["messages"][state["offset"]][1])
-        
+
         def preprocess_model_name(m):
             if m == "Playground v2":
-                return 'playground_PlayGroundV2_generation'
+                return "playground_PlayGroundV2_generation"
             if m == "Playground v2.5":
-                return 'playground_PlayGroundV2.5_generation'
+                return "playground_PlayGroundV2.5_generation"
             return m
+
         models = [preprocess_model_name(m) for m in models]
         models = [replace_model_name(m, row["tstamp"]) for m in models]
-        
+
         # Exclude certain models
         if exclude_model_names and any(x in exclude_model_names for x in models):
             ct_invalid += 1
             continue
-        
+
         # if models[0] not in model_infos or models[1] not in model_infos:
         #     continue
 
@@ -169,7 +172,7 @@ def clean_battle_data(
         #     print(f"Invalid vote before the valid starting date for {models[0]} and {models[1]}")
         #     ct_invalid += 1
         #     continue
-        
+
         question_id = row["0_conv_id"]
         # conversation_a = to_openai_format(
         #     row["states"][0]["messages"][row["states"][0]["offset"] :]
@@ -238,8 +241,15 @@ def clean_battle_data(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-num-files", type=int)
-    parser.add_argument("--mode", type=str, choices=["simple", "conv_release"], default="simple")
-    parser.add_argument("--task_name", type=str, default="image_editing", choices=["retrieval", "clustering", "sts"])
+    parser.add_argument(
+        "--mode", type=str, choices=["simple", "conv_release"], default="simple"
+    )
+    parser.add_argument(
+        "--task_name",
+        type=str,
+        default="image_editing",
+        choices=["retrieval", "clustering", "sts"],
+    )
     parser.add_argument("--exclude-model-names", type=str, nargs="+")
     parser.add_argument("--ban-ip-file", type=str)
     parser.add_argument("--sanitize-ip", action="store_true", default=False)
@@ -249,7 +259,11 @@ if __name__ == "__main__":
     ban_ip_list = json.load(open(args.ban_ip_file)) if args.ban_ip_file else None
 
     battles = clean_battle_data(
-        data, args.exclude_model_names or [], ban_ip_list, args.sanitize_ip, args.task_name
+        data,
+        args.exclude_model_names or [],
+        ban_ip_list,
+        args.sanitize_ip,
+        args.task_name,
     )
     last_updated_tstamp = battles[-1]["tstamp"]
     cutoff_date = datetime.datetime.fromtimestamp(
@@ -283,6 +297,6 @@ if __name__ == "__main__":
     with open(output, "w") as fout:
         json.dump(battles, fout, indent=2, ensure_ascii=False)
     print(f"Write cleaned data to {output}")
-    
+
     with open("cut_off_date.txt", "w") as fout:
         fout.write(cutoff_date)

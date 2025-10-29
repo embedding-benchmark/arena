@@ -1,5 +1,4 @@
 import fire
-import json
 import pandas as pd
 import pickle
 from yaml import safe_load
@@ -11,18 +10,15 @@ RENAME_KEYS = {
     "mteb_overall": "MTEB Overall Avg",
     "mteb_retrieval": "MTEB Retrieval Avg",
     "mteb_clustering": "MTEB Clustering Avg",
-    "mteb_sts": "MTEB STS Avg"
+    "mteb_sts": "MTEB STS Avg",
 }
 
-def main(
-    elo_rating_pkl: str,
-    output_csv: str
-):    
 
+def main(elo_rating_pkl: str, output_csv: str):
     MODEL_META_PATH = "model_meta.yml"
     # Debugging
     # MODEL_META_PATH = "model_meta_debug.yml"
-    with open(MODEL_META_PATH, 'r', encoding='utf-8') as f:
+    with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
         model_info = safe_load(f)["model_meta"]
 
     # Rename keys
@@ -40,12 +36,24 @@ def main(
     full_leaderboard_data = full_elo_rating_results["leaderboard_table_df"]
 
     # Model,MT-bench (score),Arena Elo rating,MMLU,License,Link
-    fields = ["key", "Model", "Arena Elo rating (anony)", "Arena Elo rating (full)", "MTEB Overall Avg", "MTEB Retrieval Avg", "MTEB Clustering Avg", "MTEB STS Avg", "License", "Organization", "Link"]
+    fields = [
+        "key",
+        "Model",
+        "Arena Elo rating (anony)",
+        "Arena Elo rating (full)",
+        "MTEB Overall Avg",
+        "MTEB Retrieval Avg",
+        "MTEB Clustering Avg",
+        "MTEB STS Avg",
+        "License",
+        "Organization",
+        "Link",
+    ]
     # set Organization and license to empty for now
     all_models = anony_leaderboard_data.index.tolist()
 
     for model in all_models:
-        if not model in model_info:
+        if model not in model_info:
             model_info[model] = {}
             model_info[model]["MTEB Overall Avg"] = "N/A"
             model_info[model]["MTEB Retrieval Avg"] = "N/A"
@@ -59,12 +67,16 @@ def main(
         model_info[model]["key"] = model
 
         if model in anony_leaderboard_data.index:
-            model_info[model]["Arena Elo rating (anony)"] = anony_leaderboard_data.loc[model, "rating"]
+            model_info[model]["Arena Elo rating (anony)"] = anony_leaderboard_data.loc[
+                model, "rating"
+            ]
         else:
             model_info[model]["Arena Elo rating (anony)"] = 0
 
         if model in full_elo_rating_results["leaderboard_table_df"].index:
-            model_info[model]["Arena Elo rating (full)"] = full_leaderboard_data.loc[model, "rating"]
+            model_info[model]["Arena Elo rating (full)"] = full_leaderboard_data.loc[
+                model, "rating"
+            ]
         else:
             model_info[model]["Arena Elo rating (full)"] = 0
         # if model in anony_leaderboard_data.index:
@@ -78,7 +90,7 @@ def main(
             final_model_info[model] = model_info[model]
     model_info = final_model_info
 
-    exclude_keys = ['starting_from']
+    exclude_keys = ["starting_from"]
     for key in exclude_keys:
         for model in model_info:
             if key in model_info[model]:

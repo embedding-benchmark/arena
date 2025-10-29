@@ -8,6 +8,7 @@ from typing import Iterable
 
 from yaml import safe_load
 
+
 def create_slurm_job_file(
     model_name: str,
     corpus: str,
@@ -65,7 +66,7 @@ if __name__ == "__main__":
 """
 
     MODEL_META_PATH = "model_meta.yml"
-    with open(MODEL_META_PATH, 'r', encoding='utf-8') as f:
+    with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
         model_meta = safe_load(f)
 
     model_names = model_meta["model_meta"].keys()

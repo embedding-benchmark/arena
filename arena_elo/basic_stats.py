@@ -1,5 +1,4 @@
 import argparse
-import code
 import datetime
 import json
 import os
@@ -14,6 +13,7 @@ LOG_ROOT_DIR = os.getenv("LOGDIR", None)
 if LOG_ROOT_DIR is None:
     print(f"LOG_ROOT_DIR: {LOG_ROOT_DIR}")
     # raise ValueError("LOGDIR environment variable not set, please set it by `export LOGDIR=...`")
+
 
 def get_log_files(max_num_files=None):
     log_root = os.path.expanduser(LOG_ROOT_DIR)
@@ -94,6 +94,7 @@ def merge_counts(series, on, names):
 
 def report_basic_stats(log_files):
     import plotly.graph_objects as go
+
     df_all = load_log_files_parallel(log_files)
     df_all = pd.DataFrame(df_all)
     now_t = df_all["tstamp"].max()

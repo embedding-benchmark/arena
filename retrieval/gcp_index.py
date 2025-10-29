@@ -14,7 +14,8 @@ logger = build_logger("index_logger", "index_logger.log")
 def model_name_as_path(model_name) -> str:
     return model_name.replace("/", "__").replace(" ", "_")
 
-MODEL_TO_INDEX_MAP = {} # for debugging with custom index names
+
+MODEL_TO_INDEX_MAP = {}  # for debugging with custom index names
 # https://cloud.withgoogle.com/region-picker/; us-central-1 & us-east-1 are cheapest
 INDEX_TO_REGION_MAP = {
     "index_stackexchange_Salesforce__SFR-Embedding-2_R": "us-central1",
@@ -25,20 +26,32 @@ INDEX_TO_REGION_MAP = {
     "index_wikipedia_text-embedding-004": "us-central1",
 }
 
+
 class VertexIndex:
     """A GCP Vertex AI Vector Search wrapper."""
+
     index: aiplatform.MatchingEngineIndex = None
     endpoint: aiplatform.MatchingEngineIndexEndpoint = None
     PROJECT_ID = "contextual-research-common"
     MACHINE_TYPE = "e2-standard-16"
 
-    def __init__(self, dim: int, model_name: str, model, corpus: str = "wikipedia", limit=None):
+    def __init__(
+        self, dim: int, model_name: str, model, corpus: str = "wikipedia", limit=None
+    ):
         model_path = model_name_as_path(model_name)
-        self.index_name = MODEL_TO_INDEX_MAP.get(model_name, f"index_{corpus}_{model_path}".replace(".", "_"))
+        self.index_name = MODEL_TO_INDEX_MAP.get(
+            model_name, f"index_{corpus}_{model_path}".replace(".", "_")
+        )
         region = INDEX_TO_REGION_MAP.get(self.index_name, "")
         if region == "":
-            region = "us-east1" if corpus in ["wikipedia", "stackexchange"] else "us-central1"
-        self.gcs_bucket_name = "mtebarenauscentral" if region == "us-central1" else "mtebarena"
+            region = (
+                "us-east1"
+                if corpus in ["wikipedia", "stackexchange"]
+                else "us-central1"
+            )
+        self.gcs_bucket_name = (
+            "mtebarenauscentral" if region == "us-central1" else "mtebarena"
+        )
         self.gcs_bucket_uri = f"gs://{self.gcs_bucket_name}"
         aiplatform.init(project=self.PROJECT_ID, location=region)
         self.dim = dim
@@ -46,7 +59,7 @@ class VertexIndex:
         # GCP filters do not allow `.` in the name, see _index_exists()
         self.index_resource_name = None
         self.deploy_index_name = None
-        self.endpoint_name = "endpoint" # Reuse endpoint across indexes
+        self.endpoint_name = "endpoint"  # Reuse endpoint across indexes
         self.emb_file_path = f"emb_{corpus}_{model_path}.json"
         self.emb_folder = f"emb_{corpus}_{model_path}"
         self.endpoint_resource_name = None
@@ -82,11 +95,13 @@ class VertexIndex:
             ]
             f.writelines(embeddings_formatted)
 
-    def _write_embeddings(self, gpu_embedder_batch_size=32//4) -> None:
-    # def _write_embeddings(self, gpu_embedder_batch_size=32*16) -> None:        
+    def _write_embeddings(self, gpu_embedder_batch_size=32 // 4) -> None:
+        # def _write_embeddings(self, gpu_embedder_batch_size=32*16) -> None:
         """Batch encoding passages, then write a jsonl file."""
         if os.path.exists(self.emb_file_path):
-            raise FileExistsError(f"{self.emb_file_path} already exists. Delete it before running this method.")
+            raise FileExistsError(
+                f"{self.emb_file_path} already exists. Delete it before running this method."
+            )
         logger.info(f"Writing embeddings to {self.emb_file_path} ...")
 
         """Optionally skip already encoded passages
@@ -96,14 +111,16 @@ class VertexIndex:
                 data = json.loads(line)
                 if data['id'] not in seen_ids:
                     seen_ids.add(str(data['id']))
-        """           
-        
+        """
+
         n_batch = math.ceil(len(self.passages) / gpu_embedder_batch_size)
         total = 0
         for i in tqdm(range(n_batch), desc="Encoding passages"):
             print("I", i)
-            
-            indices = range(i * gpu_embedder_batch_size, (i + 1) * gpu_embedder_batch_size)
+
+            indices = range(
+                i * gpu_embedder_batch_size, (i + 1) * gpu_embedder_batch_size
+            )
             """Optionally skip already encoded passages
             if all([str(index) in seen_ids for index in indices]):
                 print("Skipping as all indices in seen_ids")
@@ -115,11 +132,17 @@ class VertexIndex:
                 # exit()
             """
 
-            batch = self.passages[i * gpu_embedder_batch_size : (i + 1) * gpu_embedder_batch_size]
+            batch = self.passages[
+                i * gpu_embedder_batch_size : (i + 1) * gpu_embedder_batch_size
+            ]
             if hasattr(self.model, "encode_corpus"):
-                embeddings = self.model.encode_corpus(batch, batch_size=gpu_embedder_batch_size//8)
+                embeddings = self.model.encode_corpus(
+                    batch, batch_size=gpu_embedder_batch_size // 8
+                )
             else:
-                embeddings = self.model.encode(batch, batch_size=gpu_embedder_batch_size//8)
+                embeddings = self.model.encode(
+                    batch, batch_size=gpu_embedder_batch_size // 8
+                )
             total += len(embeddings)
             self._write_embeddings_to_file(embeddings.tolist(), indices)
             if i % 500 == 0 and i > 0:
@@ -128,7 +151,9 @@ class VertexIndex:
 
     def _upload_embedding_file(self) -> None:
         """Upload temp file to GCP storage bucket."""
-        logger.info(f"Uploading {self.emb_file_path} to {self.gcs_bucket_uri}/{self.emb_folder}")
+        logger.info(
+            f"Uploading {self.emb_file_path} to {self.gcs_bucket_uri}/{self.emb_folder}"
+        )
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.gcs_bucket_name)
         # Include the folder name in the blob path
@@ -162,12 +187,16 @@ class VertexIndex:
     def _load_index(self) -> None:
         """Load self.index if exists. Create and load index if not."""
         if self._index_exists():
-            self.index = aiplatform.MatchingEngineIndex(index_name=self.index_resource_name)
-            logger.info(f"Vector Search index {self.index.display_name} exists with resource name {self.index.resource_name}")
+            self.index = aiplatform.MatchingEngineIndex(
+                index_name=self.index_resource_name
+            )
+            logger.info(
+                f"Vector Search index {self.index.display_name} exists with resource name {self.index.resource_name}"
+            )
             return
         print(f"Index does not exist. Creating {self.index_name}")
         self._create_index()
-    
+
     def _endpoint_exists(self) -> bool:
         endpoint_names = [
             endpoint.resource_name
@@ -179,7 +208,7 @@ class VertexIndex:
             self.endpoint_resource_name = endpoint_names[0]
             return True
         return False
-    
+
     def _endpoint_deployed(self) -> bool:
         index_endpoints = [
             (deployed_index.index_endpoint, deployed_index.deployed_index_id)
@@ -204,8 +233,10 @@ class VertexIndex:
             logger.info(
                 f"Vector Search index endpoint {self.endpoint.display_name} exists with resource name {self.endpoint.resource_name}"
             )
-        else: 
-            logger.info(f"Creating Vector Search index endpoint {self.endpoint_name} ...")
+        else:
+            logger.info(
+                f"Creating Vector Search index endpoint {self.endpoint_name} ..."
+            )
             self.endpoint = aiplatform.MatchingEngineIndexEndpoint.create(
                 display_name=self.endpoint_name, public_endpoint_enabled=True
             )
@@ -219,7 +250,9 @@ class VertexIndex:
 
         ## Synchronous call. This could take up to 30 minutes.
         logger.info(f"Deploying Vector Search index {self.index.display_name}...")
-        self.deploy_index_name = "endpoint_" + self.endpoint_resource_name.split("/")[-1]
+        self.deploy_index_name = (
+            "endpoint_" + self.endpoint_resource_name.split("/")[-1]
+        )
         self.endpoint = self.endpoint.deploy_index(
             index=self.index,
             deployed_index_id=self.deploy_index_name,
@@ -231,7 +264,7 @@ class VertexIndex:
         logger.info(
             f"Vector Search index {self.index.display_name} is deployed at endpoint {self.endpoint.display_name}"
         )
-    
+
     def search(self, query_embeds: list, topk=1, num_retries=5):
         """Return topk docs"""
         if self.endpoint is None:
@@ -248,7 +281,9 @@ class VertexIndex:
                 break
             except Exception as e:
                 num_retries -= 1
-                logger.error(f"Error in find_neighbors: {e}. Retries left: {num_retries}")
+                logger.error(
+                    f"Error in find_neighbors: {e}. Retries left: {num_retries}"
+                )
                 time.sleep(2)
 
         sorted_data = sorted(response[0], key=lambda x: x.distance, reverse=True)
@@ -260,5 +295,5 @@ class VertexIndex:
         self.index.delete(sync=False)
 
 
-if __name__ == '__main__':
-    print(len(load_passages_from_hf(corpus='stackexchange')))
+if __name__ == "__main__":
+    print(len(load_passages_from_hf(corpus="stackexchange")))

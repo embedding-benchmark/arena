@@ -7,7 +7,9 @@ from .common import load_passages_from_hf
 
 
 from log_utils import build_logger
+
 logger = build_logger("index_logger", "index_logger.log")
+
 
 class BM25Index:
     def __init__(self, model_name: str, corpus: str = "wikipedia", limit=None):
@@ -25,14 +27,16 @@ class BM25Index:
         else:
             corpus_lst = [r["text"] for r in passages]
         corpus_tokenized = bm25s.tokenize(corpus_lst, stemmer=self.stemmer)
-        
+
         # By default bm25s uses method="lucene", see https://github.com/xhluca/bm25s?tab=readme-ov-file#variants.
         retriever = bm25s.hf.BM25HF()
         retriever.index(corpus_tokenized)
 
         # Save to hub as a model
         hf_token = os.getenv("HF_TOKEN")
-        retriever.save_to_hub(repo_id=f"mteb/{self.repo_name}", token=hf_token, corpus=passages)
+        retriever.save_to_hub(
+            repo_id=f"mteb/{self.repo_name}", token=hf_token, corpus=passages
+        )
         self.index = retriever
         logger.info(f"Index created & uploaded to `mteb/{self.repo_name}`")
 

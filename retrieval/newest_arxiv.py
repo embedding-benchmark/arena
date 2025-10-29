@@ -16,15 +16,14 @@ import re
 
 def clean_text_newlines(text):
     # First, replace double newlines with a special marker
-    text = re.sub(r'\n\s*\n', '<<PARAGRAPH>>', text)
-    
-    # Replace all other whitespace (including single newlines) with a single space
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Restore double newlines
-    text = text.replace('<<PARAGRAPH>>', '\n\n').strip()
-    return text
+    text = re.sub(r"\n\s*\n", "<<PARAGRAPH>>", text)
 
+    # Replace all other whitespace (including single newlines) with a single space
+    text = re.sub(r"\s+", " ", text)
+
+    # Restore double newlines
+    text = text.replace("<<PARAGRAPH>>", "\n\n").strip()
+    return text
 
 
 def create_newest_arxiv(args):
