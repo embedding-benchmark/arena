@@ -196,4 +196,4 @@ with gr.Blocks(title="MTEB Arena", head=head_js) as block:
     gr.Markdown(acknowledgment_md, elem_id="ack_markdown")
 
 block.queue(max_size=10)
-block.launch(share=True)
+block.launch(share=True, server_name="0.0.0.0")

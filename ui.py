@@ -3,6 +3,7 @@ import datetime
 import time
 import os
 import uuid
+from pprint import pprint
 
 import gradio as gr
 
@@ -351,8 +352,14 @@ def retrieve_side_by_side(
     yield (
         state0,
         state1,
-        retrieved_txt0,
-        retrieved_txt1,
+        [
+            {"role": "user", "content": text},
+            {"role": "assistant", "content": retrieved_txt0[0][1]},
+        ],
+        [
+            {"role": "user", "content": text},
+            {"role": "assistant", "content": retrieved_txt1[0][1]},
+        ],
         gr.Markdown(f"### Model A: {model_name0}", visible=False),
         gr.Markdown(f"### Model B: {model_name1}", visible=False),
     )
@@ -398,10 +405,16 @@ def retrieve(gen_func, state, text, corpus, model_name, request: gr.Request):
     retrieved_txt = gen_func(text, corpus, model_name)
     state.prompt = text
     state.corpus = corpus
-    state.output = retrieved_txt
+    state.output = retrieved_txt[0][1]
     state.model_name = model_name
 
-    yield state, retrieved_txt
+    yield (
+        state,
+        [
+            {"role": "user", "content": text},
+            {"role": "assistant", "content": retrieved_txt[0][1]},
+        ],
+    )
 
     finish_tstamp = time.time()
 
@@ -451,14 +464,12 @@ def build_side_by_side_ui_anon(models):
                     label="Model A",
                     elem_id="chatbot",
                     height=550,
-                    show_copy_button=True,
                 )
             with gr.Column():
                 chatbot_right = gr.Chatbot(
                     label="Model B",
                     elem_id="chatbot",
                     height=550,
-                    show_copy_button=True,
                 )
 
         with gr.Row():
@@ -751,14 +762,12 @@ def build_side_by_side_ui_named(models):
                     label="Model A",
                     elem_id="chatbot",
                     height=550,
-                    show_copy_button=True,
                 )
             with gr.Column():
                 chatbot_right = gr.Chatbot(
                     label="Model B",
                     elem_id="chatbot",
                     height=550,
-                    show_copy_button=True,
                 )
         with gr.Row():
             leftvote_btn = gr.Button(
@@ -1008,7 +1017,6 @@ def build_single_model_ui(models):
             label="Model",
             elem_id="chatbot",
             height=550,
-            show_copy_button=True,
         )
 
     with gr.Row():

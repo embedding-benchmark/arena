@@ -28,3 +28,34 @@ model_meta:
     mteb_retrieval: 46.64
     mteb_sts: 79.10
     mteb_clustering: 37.08
+  intfloat/multilingual-e5-large-instruct:
+    link: https://huggingface.co/intfloat/multilingual-e5-large-instruct
+    revision: baa7be480a7de1539afce709c8f13f833a510e0a
+    desc: multilingual-e5-large-instruct by Microsoft
+    seq_len: 514
+    size: 560
+    dim: 1024
+    license: MIT License
+    organization: Microsoft
+    instruction_query_arxiv: Given a query, retrieve a relevant paper title and abstract from arXiv
+    instruction_query_wikipedia: Given a query, retrieve a relevant title and passage from Wikipedia
+    instruction_query_stackexchange: Given a query, retrieve a relevant question and answer from Stack Exchange
+    instruction_sts: Retrieve semantically similar text
+    instruction_clustering: Identify the topic/theme/category of the text
+    mteb_overall: 64.41
+    mteb_retrieval: 52.47
+    mteb_sts: 84.78
+    mteb_clustering: 47.10
+  BAAI/bge-large-en-v1.5:
+    link: https://huggingface.co/BAAI/bge-large-en-v1.5
+    revision: d4aa6901d3a41ba39fb536a557fa166f842b0e09
+    desc: bge-large-en-v1.5 by BAAI
+    seq_len: 512
+    size: 335
+    dim: 1024
+    license: MIT
+    organization: BAAI
+    mteb_overall: 64.23
+    mteb_retrieval: 54.29
+    mteb_sts: 83.11
+    mteb_clustering: 46.08

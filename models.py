@@ -252,7 +252,8 @@ class ModelManager:
     def retrieve_parallel(self, prompt, corpus, model_A, model_B):
         if model_A == "" and model_B == "":
             if corpus == "stackexchange":
-                model_names = random.sample(self.models_retrieval_stackexchange, 2)
+                # model_names = random.sample(self.models_retrieval_stackexchange, 2)
+                model_names = random.sample(list(self.model_meta.keys()), 2)
             else:
                 model_names = random.sample(self.models_retrieval, 2)
         else:
