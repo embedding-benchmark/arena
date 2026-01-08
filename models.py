@@ -9,10 +9,15 @@ import spaces
 import torch
 
 from log_utils import build_logger
-from retrieval.index import build_index, load_or_initialize_index
-from retrieval.index import DistributedIndex
+from retrieval.index import (
+    build_index,
+    load_or_initialize_index,
+    DistributedIndex,
+    DTYPE_TO_TORCH_DTYPE,
+)
 from retrieval.gcp_index import VertexIndex
 from retrieval.bm25_index import BM25Index
+from retrieval.common import load_passages_from_hf
 from clustering_samples import CLUSTERING_CATEGORIES
 
 logger = build_logger("model_logger", "model_logger.log")
@@ -135,23 +140,73 @@ class ModelManager:
         if os.path.exists(save_path):
             load_index_path = save_path
 
-        index, passages = load_or_initialize_index(
-            load_index_path=load_index_path,
-            dim=meta.get("dim", None),
-            limit=meta.get("limit", None),
-            index_dtype=meta.get("index_dtype", "bfloat16"),
-            passages=["corpus.jsonl"],
-        )
-
-        if load_index_path is None:
-            build_index(
-                self.loaded_models[model_name],
-                index,
-                passages,
-                gpu_embedder_batch_size=embedbs,
+        # If index exists locally, load directly from saved index
+        if load_index_path is not None:
+            index, passages = load_or_initialize_index(
+                load_index_path=load_index_path,
+                dim=meta.get("dim", None),
+                limit=meta.get("limit", None),
+                index_dtype=meta.get("index_dtype", "bfloat16"),
+                passages=None,  # passages parameter is not used when loading existing index
             )
-            os.makedirs(save_path, exist_ok=True)
-            index.save_index(save_path)
+        else:
+            # Try to download pre-built index from HuggingFace
+            from retrieval.index import download_index_from_hf
+
+            # Construct HuggingFace repo ID following the same pattern as BM25Index
+            model_path = model_name.replace("/", "_").replace(" ", "_")
+            hf_repo_id = f"mteb/index_{corpus}_{model_path}"
+
+            logger.info(
+                f"Attempting to download pre-built index from HuggingFace: {hf_repo_id}"
+            )
+            download_success, num_shards = download_index_from_hf(
+                repo_id=hf_repo_id,
+                local_dir=save_path,
+                total_saved_shards=None,  # Auto-detect number of shards
+            )
+
+            if download_success and os.path.exists(save_path):
+                # Successfully downloaded, now load it
+                logger.info(
+                    f"Successfully downloaded index from HuggingFace ({num_shards} shard(s)), loading..."
+                )
+                index, passages = load_or_initialize_index(
+                    load_index_path=save_path,
+                    dim=meta.get("dim", None),
+                    limit=meta.get("limit", None),
+                    index_dtype=meta.get("index_dtype", "bfloat16"),
+                    save_index_n_shards=num_shards,  # Use detected shard count
+                    passages=None,
+                )
+            else:
+                # Download failed or index not available, build from scratch
+                logger.info(
+                    "Pre-built index not available on HuggingFace. Building index from scratch..."
+                )
+                # If index does not exist, load corpus data from HuggingFace (consistent with GCP Index)
+                logger.info(f"Loading passages from HuggingFace for corpus: {corpus}")
+                passages = load_passages_from_hf(
+                    corpus=corpus, limit=meta.get("limit", None)
+                )
+                logger.info(f"Loaded {len(passages)} passages from HuggingFace")
+
+                # Initialize index
+                index = DistributedIndex(
+                    dtype=DTYPE_TO_TORCH_DTYPE[meta.get("index_dtype", "bfloat16")]
+                )
+                index.init_embeddings(passages, meta.get("dim", None))
+
+                # Build index
+                build_index(
+                    self.loaded_models[model_name],
+                    index,
+                    passages,
+                    gpu_embedder_batch_size=embedbs,
+                )
+                # Save index
+                os.makedirs(save_path, exist_ok=True)
+                index.save_index(save_path)
 
         self.loaded_indices.setdefault(model_name, {})
         self.loaded_indices[model_name][corpus] = index

@@ -168,6 +168,57 @@ class DistributedIndex(object):
         return True
 
 
+def download_index_from_hf(
+    repo_id: str, local_dir: str, total_saved_shards: Optional[int] = None
+) -> Tuple[bool, int]:
+    """
+    Download pre-built index from HuggingFace Hub.
+
+    Args:
+        repo_id: HuggingFace repository ID (e.g., "mteb/index_wikipedia_sentence-transformers_all-MiniLM-L6-v2")
+        local_dir: Local directory to save the downloaded index
+        total_saved_shards: Number of shards the index was saved with. If None, will auto-detect.
+
+    Returns:
+        Tuple of (success: bool, num_shards: int). Returns (False, 0) if download failed.
+    """
+    try:
+        from huggingface_hub import snapshot_download
+
+        print(f"Attempting to download index from HuggingFace: {repo_id}")
+        snapshot_download(
+            repo_id=repo_id,
+            local_dir=local_dir,
+            repo_type="model",  # Use model repo type for index files
+        )
+        print(f"Successfully downloaded index to {local_dir}")
+
+        # Auto-detect number of shards if not specified
+        if total_saved_shards is None:
+            shard_count = 0
+            while True:
+                embedding_path = os.path.join(local_dir, f"embeddings.{shard_count}.pt")
+                if os.path.exists(embedding_path):
+                    shard_count += 1
+                else:
+                    break
+            total_saved_shards = shard_count if shard_count > 0 else 1
+            print(f"Auto-detected {total_saved_shards} shard(s)")
+
+        # Verify that required files exist
+        for shard_id in range(total_saved_shards):
+            embedding_path = os.path.join(local_dir, f"embeddings.{shard_id}.pt")
+            passage_path = os.path.join(local_dir, f"passages.{shard_id}.pt")
+            if not os.path.exists(embedding_path) or not os.path.exists(passage_path):
+                print(f"Warning: Missing shard {shard_id} files in downloaded index")
+                return False, 0
+
+        return True, total_saved_shards
+    except Exception as e:
+        print(f"Failed to download index from HuggingFace: {e}")
+        return False, 0
+
+
 def load_passages(filenames, maxload=-1):
     """
     Returns a list of passages. Each passage is a dict with the following keys:
